@@ -1,0 +1,25 @@
+{
+  "name": "my-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "pnpm@10.17.1",
+  "scripts": {
+    "dev": "pnpm --parallel --filter \"./apps/**\" dev",
+    "dev:web": "pnpm --filter web dev",
+    "dev:api": "pnpm --filter api start:dev",
+    "build": "pnpm -r run build",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "typecheck": "tsc -b",
+    "prisma:generate": "pnpm --filter api prisma:generate",
+    "prisma:migrate": "pnpm --filter api prisma:migrate",
+    "docker:up": "cd infra/docker && docker-compose up -d",
+    "docker:down": "cd infra/docker && docker-compose down"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "eslint": "^9.0.0",
+    "prettier": "^3.2.0",
+    "typescript": "^5.9.2"
+  }
+}

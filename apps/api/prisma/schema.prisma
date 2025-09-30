@@ -1,0 +1,179 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  subjects          Subject[]
+  tags              Tag[]
+  tasks             Task[]
+  exams             Exam[]
+  studySessions     StudySession[]
+  capacityRules     CapacityRule[]
+  capacityExceptions CapacityException[]
+
+  @@map("users")
+}
+
+model Subject {
+  id        String   @id @default(uuid())
+  name      String
+  color     String?
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tasks Task[]
+  exams Exam[]
+
+  @@unique([userId, name])
+  @@map("subjects")
+}
+
+model Tag {
+  id        String   @id @default(uuid())
+  name      String
+  color     String?
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  taskTags TaskTag[]
+
+  @@unique([userId, name])
+  @@map("tags")
+}
+
+model Task {
+  id               String    @id @default(uuid())
+  title            String
+  description      String?
+  dueDate          DateTime?
+  priority         Int       @default(2)
+  status           String    @default("TODO")
+  estimatedMinutes Int?
+  userId           String
+  subjectId        String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject         Subject?          @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  tags            TaskTag[]
+  sessionSubtasks SessionSubtask[]
+
+  @@map("tasks")
+}
+
+model TaskTag {
+  id        String   @id @default(uuid())
+  taskId    String
+  tagId     String
+  createdAt DateTime @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, tagId])
+  @@map("task_tags")
+}
+
+model Exam {
+  id             String   @id @default(uuid())
+  title          String
+  date           DateTime
+  duration       Int?
+  location       String?
+  description    String?
+  subjectId      String
+  userId         String
+  prepTimeNeeded Int?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@map("exams")
+}
+
+model StudySession {
+  id             String    @id @default(uuid())
+  title          String
+  scheduledStart DateTime
+  scheduledEnd   DateTime
+  actualStart    DateTime?
+  actualEnd      DateTime?
+  status         String    @default("SCHEDULED")
+  notes          String?
+  userId         String
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subtasks SessionSubtask[]
+
+  @@map("study_sessions")
+}
+
+model SessionSubtask {
+  id               String   @id @default(uuid())
+  sessionId        String
+  taskId           String?
+  description      String
+  estimatedMinutes Int
+  actualMinutes    Int?
+  completed        Boolean  @default(false)
+  order            Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  session StudySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  task    Task?        @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@map("session_subtasks")
+}
+
+model CapacityRule {
+  id        String   @id @default(uuid())
+  userId    String
+  dayOfWeek Int
+  startTime String
+  endTime   String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("capacity_rules")
+}
+
+model CapacityException {
+  id          String   @id @default(uuid())
+  userId      String
+  date        DateTime @db.Date
+  startTime   String?
+  endTime     String?
+  reason      String?
+  isAvailable Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("capacity_exceptions")
+}
