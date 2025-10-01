@@ -61,11 +61,34 @@ async function main() {
   await prisma.studySession.deleteMany({ where: { userId: user.id } })
 
   /* ---------------------------- Subjects ---------------------------- */
-  const subjects = await prisma.$transaction([
-    prisma.subject.create({ data: { name: 'Mathe', userId: user.id } }),
-    prisma.subject.create({ data: { name: 'Englisch', userId: user.id } }),
-    prisma.subject.create({ data: { name: 'Geschichte', userId: user.id } }),
-  ])
+  // Falls dein Prisma-Schema hat: @@unique([userId, name], name: "userId_name")
+  // und das Feld: weeklyGoalMinutes Int @default(120)
+
+  const subjectInputs = [
+    { name: 'Mathe',      color: '#64748b', weeklyGoalMinutes: 180 },
+    { name: 'Englisch',   color: '#334155', weeklyGoalMinutes: 150 },
+    { name: 'Geschichte', color: '#0f172a', weeklyGoalMinutes: 120 },
+  ] as const
+
+  const subjects: { id: string; name: string }[] = []
+
+  for (const s of subjectInputs) {
+    const created = await prisma.subject.upsert({
+      where: { userId_name: { userId: user.id, name: s.name } },
+      update: {
+        color: s.color ?? null,
+        weeklyGoalMinutes: s.weeklyGoalMinutes,
+      },
+      create: {
+        userId: user.id,
+        name: s.name,
+        color: s.color ?? null,
+        weeklyGoalMinutes: s.weeklyGoalMinutes,
+      },
+    })
+    subjects.push({ id: created.id, name: created.name })
+  }
+
   const subjectByName = Object.fromEntries(subjects.map(s => [s.name, s.id]))
   console.log('✅ Subjects:', subjects.map(s => s.name).join(', '))
 

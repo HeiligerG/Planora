@@ -6,6 +6,7 @@ import { AuthModule } from './auth/auth.module';
 import { StudySessionsModule } from './study-sessions/study-sessions.module'
 import { TasksModule } from './tasks/tasks.module';
 import { TagsModule } from './tags/tags.module';
+import { SubjectsModule } from './subjects/subjects.module';
 
 @Module({
   imports: [
@@ -16,7 +17,7 @@ import { TagsModule } from './tags/tags.module';
     StudySessionsModule,
     TasksModule,
     TagsModule,
-
+    SubjectsModule,
   ],
 })
 export class AppModule {}
