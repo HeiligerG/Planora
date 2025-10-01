@@ -1,37 +1,120 @@
+// src/lib/api.ts
 import { useAuthStore } from '../stores/authStore'
+
+/* -------------------------------- Core -------------------------------- */
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000'
 
-export async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+export async function apiRequest<T = any>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<T> {
   const token = useAuthStore.getState().token
 
-  const response = await fetch(`${API_URL}${endpoint}`, {
+  const res = await fetch(`${API_URL}${endpoint}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` }),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },
   })
 
-  if (response.status === 401) {
+  if (res.status === 401) {
     useAuthStore.getState().logout()
     throw new Error('Unauthorized')
   }
-
-  if (!response.ok) {
-    throw new Error('API request failed')
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`API request failed (${res.status}): ${text || res.statusText}`)
   }
-
-  return response.json()
+  if (res.status === 204) return undefined as T
+  return (await res.json()) as T
 }
 
+/* ------------------------------- Tasks ------------------------------- */
+
+export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'DONE'
+
+export interface Task {
+  id: string
+  title: string
+  description?: string | null
+  dueDate?: string | null
+  priority: number | null            // z. B. 1..3 (du hast default 2)
+  status: TaskStatus
+  estimatedMinutes?: number | null
+  subject?: { id: string; name: string } | null
+  // Prisma-include: { tags: { include: { tag: true } } }
+  tags?: Array<{ tag: { name: string } }>
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface CreateTaskDto {
+  title: string
+  description?: string
+  dueDate?: string | null            // ISO (oder weglassen)
+  priority?: number                  // 1..3
+  status?: TaskStatus                // wenn weggelassen -> DB-Default "TODO"
+  estimatedMinutes?: number | null
+  subjectId?: string | null
+  // Tag-Namen; dein Backend kann connectOrCreate machen
+  tags?: string[]
+}
+
+export type UpdateTaskDto = Partial<CreateTaskDto>
+
 export const tasksApi = {
-  getAll: () => apiRequest('/tasks'),
-  create: (data: any) => apiRequest('/tasks', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  }),
+  /** GET /tasks?dueDate=YYYY-MM-DD (optional) */
+  getAll: (params?: { dueDate?: string }) => {
+    const qs = params?.dueDate ? `?dueDate=${encodeURIComponent(params.dueDate)}` : ''
+    return apiRequest<Task[]>(`/tasks${qs}`)
+  },
+
+  /** GET /tasks/:id */
+  getOne: (id: string) => apiRequest<Task>(`/tasks/${id}`),
+
+  /** POST /tasks */
+  create: (data: CreateTaskDto) =>
+    apiRequest<Task>('/tasks', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  /** PATCH /tasks/:id */
+  update: (id: string, data: UpdateTaskDto) =>
+    apiRequest<Task>(`/tasks/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+
+  /** DELETE /tasks/:id */
+  remove: (id: string) =>
+    apiRequest<void>(`/tasks/${id}`, { method: 'DELETE' }),
+
+  /** GET /tasks/search?q=...  (entspricht deinem Controller) */
+  search: (q: string) =>
+    apiRequest<Task[]>(`/tasks/search?q=${encodeURIComponent(q)}`),
+
+  /** PATCH /tasks/:id/tags  (falls du den Tag-Endpoint nutzt: „ersetzen“) */
+  setTags: (id: string, tags: string[]) =>
+    apiRequest<Task>(`/tasks/${id}/tags`, {
+      method: 'PATCH',
+      body: JSON.stringify({ tags }),
+    }),
+}
+
+/* --------------------------- Study Sessions --------------------------- */
+
+export interface Subtask {
+  id: string
+  sessionId: string
+  description: string
+  estimatedMinutes: number
+  actualMinutes?: number
+  completed: boolean
+  order: number
 }
 
 export interface StudySession {
@@ -49,16 +132,6 @@ export interface StudySession {
   subtasks: Subtask[]
 }
 
-export interface Subtask {
-  id: string
-  sessionId: string
-  description: string
-  estimatedMinutes: number
-  actualMinutes?: number
-  completed: boolean
-  order: number
-}
-
 export interface CreateStudySessionDto {
   title: string
   scheduledStart: string
@@ -72,11 +145,11 @@ export const studySessionsApi = {
     const query = new URLSearchParams()
     if (params?.startDate) query.append('startDate', params.startDate)
     if (params?.endDate) query.append('endDate', params.endDate)
-    return apiRequest<StudySession[]>(`/study-sessions?${query}`)
+    const suffix = query.toString() ? `?${query.toString()}` : ''
+    return apiRequest<StudySession[]>(`/study-sessions${suffix}`)
   },
 
-  getOne: (id: string) => 
-    apiRequest<StudySession>(`/study-sessions/${id}`),
+  getOne: (id: string) => apiRequest<StudySession>(`/study-sessions/${id}`),
 
   create: (data: CreateStudySessionDto) =>
     apiRequest<StudySession>('/study-sessions', {
@@ -91,14 +164,10 @@ export const studySessionsApi = {
     }),
 
   delete: (id: string) =>
-    apiRequest<void>(`/study-sessions/${id}`, {
-      method: 'DELETE',
-    }),
+    apiRequest<void>(`/study-sessions/${id}`, { method: 'DELETE' }),
 
-  getWeekStats: (weekStart: string) => {
-    const query = new URLSearchParams({ weekStart })
-    return apiRequest<Array<{ planned: number; actual: number; sessions: number }>>(
-      `/study-sessions/week-stats?${query}`
-    )
-  },
+  getWeekStats: (weekStart: string) =>
+    apiRequest<Array<{ planned: number; actual: number; sessions: number }>>(
+      `/study-sessions/week-stats?${new URLSearchParams({ weekStart })}`
+    ),
 }
