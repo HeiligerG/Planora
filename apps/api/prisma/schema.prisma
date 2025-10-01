@@ -103,6 +103,7 @@ model Exam {
   subjectId      String
   userId         String
   prepTimeNeeded Int?
+  risk           Int      @default(2)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

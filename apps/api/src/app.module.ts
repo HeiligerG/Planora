@@ -7,6 +7,7 @@ import { StudySessionsModule } from './study-sessions/study-sessions.module'
 import { TasksModule } from './tasks/tasks.module';
 import { TagsModule } from './tags/tags.module';
 import { SubjectsModule } from './subjects/subjects.module';
+import { ExamsModule } from './exams/exams.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { SubjectsModule } from './subjects/subjects.module';
     TasksModule,
     TagsModule,
     SubjectsModule,
+    ExamsModule,
   ],
 })
 export class AppModule {}

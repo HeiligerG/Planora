@@ -214,3 +214,47 @@ export const subjectsApi = {
   search: (q: string) =>
     apiRequest<Subject[]>(`/subjects/search?q=${encodeURIComponent(q)}`),
 }
+
+/* --------------------------- Exams --------------------------- */
+export interface Exam {
+  id: string
+  title: string
+  date: string
+  duration?: number | null
+  location?: string | null
+  description?: string | null
+  subject: { id: string; name: string }
+  subjectId?: string
+  prepTimeNeeded?: number | null
+  risk: number
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface CreateExamDto {
+  title: string
+  date: string
+  subjectId: string
+  duration?: number
+  location?: string
+  description?: string
+  prepTimeNeeded?: number
+  risk?: number
+}
+export type UpdateExamDto = Partial<CreateExamDto>
+
+export const examsApi = {
+  getAll: (params?: { from?: string; to?: string }) => {
+    const q = new URLSearchParams()
+    if (params?.from) q.append('from', params.from)
+    if (params?.to) q.append('to', params.to)
+    const qs = q.toString()
+    return apiRequest<Exam[]>(`/exams${qs ? `?${qs}` : ''}`)
+  },
+  getOne: (id: string) => apiRequest<Exam>(`/exams/${id}`),
+  create: (data: CreateExamDto) =>
+    apiRequest<Exam>('/exams', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: UpdateExamDto) =>
+    apiRequest<Exam>(`/exams/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  remove: (id: string) => apiRequest<void>(`/exams/${id}`, { method: 'DELETE' }),
+}
