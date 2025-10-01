@@ -1,36 +1,30 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
+import {
+  useSubjects,
+  useCreateSubject,
+  useUpdateSubject,
+  useDeleteSubject,
+  SubjectUI,
+} from '../hooks/useSubjects'
 
 export const Route = createFileRoute('/subjects')({
   component: SubjectsPage,
 })
 
-/* ========================= Types & Mock ========================= */
-
-export interface Subject {
-  id: string
-  name: string
-  weeklyGoalMinutes: number            // Ziel pro Woche
-  color?: string                       // optional für Badges
-  // Mock-Kennzahlen (würdest du später aus Analytics/DB holen)
-  completedThisWeek: number            // erledigte Minuten diese Woche
-}
-
-const MOCK_SUBJECTS: Subject[] = [
-  { id: rid(), name: 'Mathe',     weeklyGoalMinutes: 180, completedThisWeek: 62,  color: '#64748b' },
-  { id: rid(), name: 'Englisch',  weeklyGoalMinutes: 150, completedThisWeek: 88,  color: '#334155' },
-  { id: rid(), name: 'Geschichte',weeklyGoalMinutes: 120, completedThisWeek: 95,  color: '#0f172a' },
-]
-
-/* ============================ Page ============================= */
-
 function SubjectsPage() {
-  const [subjects, setSubjects] = useState<Subject[]>(MOCK_SUBJECTS)
+  const { data, isLoading, error } = useSubjects()
+  const createSubject = useCreateSubject()
+  const updateSubject = useUpdateSubject()
+  const deleteSubject = useDeleteSubject()
+
+  const subjects = data ?? []
+
   const [query, setQuery] = useState('')
-  const [sortBy, setSortBy] = useState<'name' | 'goal' | 'completed' | 'progress'>('name')
+  const [sortBy, setSortBy] = useState<'name' | 'goal' | 'progress'>('name')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
   const [modalOpen, setModalOpen] = useState(false)
-  const [editing, setEditing] = useState<Subject | null>(null)
+  const [editing, setEditing] = useState<SubjectUI | null>(null)
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -40,7 +34,6 @@ function SubjectsPage() {
       let cmp = 0
       if (sortBy === 'name') cmp = a.name.localeCompare(b.name, 'de')
       if (sortBy === 'goal') cmp = a.weeklyGoalMinutes - b.weeklyGoalMinutes
-      if (sortBy === 'completed') cmp = a.completedThisWeek - b.completedThisWeek
       if (sortBy === 'progress') cmp = progress(a) - progress(b)
       return sortDir === 'asc' ? cmp : -cmp
     })
@@ -53,31 +46,44 @@ function SubjectsPage() {
     setModalOpen(true)
   }
 
-  function handleEdit(s: Subject) {
+  function handleEdit(s: SubjectUI) {
     setEditing(s)
     setModalOpen(true)
   }
 
-  function handleDelete(id: string) {
+  async function handleDelete(id: string) {
     if (confirm('Dieses Fach wirklich löschen?')) {
-      setSubjects(prev => prev.filter(s => s.id !== id))
+      await deleteSubject.mutateAsync(id)
     }
   }
 
-  function handleSubmit(values: SubjectFormValues) {
+  async function handleSubmit(values: SubjectFormValues) {
     if (editing) {
-      setSubjects(prev => prev.map(s => s.id === editing.id ? { ...editing, ...values } : s))
+      await updateSubject.mutateAsync({
+        id: editing.id,
+        patch: {
+          name: values.name,
+          weeklyGoalMinutes: values.weeklyGoalMinutes,
+          color: values.color ?? undefined,
+        },
+      })
     } else {
-      setSubjects(prev => [{
-        id: rid(),
+      await createSubject.mutateAsync({
         name: values.name,
         weeklyGoalMinutes: values.weeklyGoalMinutes,
-        color: values.color,
-        completedThisWeek: values.completedThisWeek ?? 0,
-      }, ...prev])
+        color: values.color ?? null,
+      })
     }
     setEditing(null)
     setModalOpen(false)
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-rose-800">
+        Fehler beim Laden der Fächer: {(error as Error).message}
+      </div>
+    )
   }
 
   return (
@@ -99,28 +105,40 @@ function SubjectsPage() {
               onChange={(by, dir) => { setSortBy(by); setSortDir(dir) }}
             />
           </div>
-          <button onClick={handleCreate} className="rounded-xl bg-slate-900 px-3 py-2 text-sm text-white">
+          <button
+            onClick={handleCreate}
+            className="rounded-xl bg-slate-900 px-3 py-2 text-sm text-white"
+          >
             + Neu
           </button>
         </div>
       </div>
 
+      {/* Loading */}
+      {isLoading && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-500">
+          Lade Fächer…
+        </div>
+      )}
+
       {/* Grid */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {filtered.length === 0 && (
-          <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-500 md:col-span-2 xl:col-span-3">
-            Keine Fächer gefunden
-          </div>
-        )}
-        {filtered.map(s => (
-          <SubjectCard
-            key={s.id}
-            subject={s}
-            onEdit={() => handleEdit(s)}
-            onDelete={() => handleDelete(s.id)}
-          />
-        ))}
-      </div>
+      {!isLoading && (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {filtered.length === 0 && (
+            <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-500 md:col-span-2 xl:col-span-3">
+              Keine Fächer gefunden
+            </div>
+          )}
+          {filtered.map(s => (
+            <SubjectCard
+              key={s.id}
+              subject={s}
+              onEdit={() => handleEdit(s)}
+              onDelete={() => handleDelete(s.id)}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Modal */}
       {modalOpen && (
@@ -128,6 +146,7 @@ function SubjectsPage() {
           initial={editing ?? undefined}
           onClose={() => { setModalOpen(false); setEditing(null) }}
           onSubmit={handleSubmit}
+          saving={createSubject.isPending || updateSubject.isPending}
         />
       )}
     </div>
@@ -141,12 +160,13 @@ function SubjectCard({
   onEdit,
   onDelete,
 }: {
-  subject: Subject
+  subject: SubjectUI
   onEdit: () => void
   onDelete: () => void
 }) {
-  const pct = Math.min(100, Math.round(progress(subject)))
-  const remaining = Math.max(0, subject.weeklyGoalMinutes - subject.completedThisWeek)
+  const completedThisWeek = 0
+  const pct = Math.min(100, Math.round(progress({ ...subject, completedThisWeek } as any)))
+  const remaining = Math.max(0, subject.weeklyGoalMinutes - completedThisWeek)
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -168,7 +188,7 @@ function SubjectCard({
       <ProgressBar value={pct} />
 
       <div className="mt-2 flex items-center justify-between text-xs text-slate-600">
-        <span>Erledigt: {subject.completedThisWeek} min</span>
+        <span>Erledigt: {completedThisWeek} min</span>
         <span>Rest: {remaining} min</span>
       </div>
 
@@ -196,9 +216,9 @@ function ProgressBar({ value }: { value: number }) {
 }
 
 function SortControl(props: {
-  sortBy: 'name' | 'goal' | 'completed' | 'progress'
+  sortBy: 'name' | 'goal' | 'progress'
   sortDir: 'asc' | 'desc'
-  onChange: (by: 'name' | 'goal' | 'completed' | 'progress', dir: 'asc' | 'desc') => void
+  onChange: (by: 'name' | 'goal' | 'progress', dir: 'asc' | 'desc') => void
 }) {
   return (
     <div className="flex items-center gap-2">
@@ -209,7 +229,6 @@ function SortControl(props: {
       >
         <option value="name">Name</option>
         <option value="goal">Ziel (min/Woche)</option>
-        <option value="completed">Erledigt (diese Woche)</option>
         <option value="progress">Fortschritt (%)</option>
       </select>
       <button
@@ -225,30 +244,36 @@ function SortControl(props: {
 
 /* ========================= Modal & Form ========================= */
 
-type SubjectFormValues = Omit<Subject, 'id' | 'completedThisWeek'> & { completedThisWeek?: number }
+type SubjectFormValues = {
+  name: string
+  weeklyGoalMinutes: number
+  color?: string
+  completedThisWeek?: number
+}
 
 function SubjectModal({
   initial,
   onClose,
   onSubmit,
+  saving,
 }: {
-  initial?: Subject
+  initial?: SubjectUI
   onClose: () => void
   onSubmit: (values: SubjectFormValues) => void
+  saving?: boolean
 }) {
   const [name, setName] = useState(initial?.name ?? '')
   const [weeklyGoalMinutes, setWeeklyGoalMinutes] = useState(initial?.weeklyGoalMinutes ?? 120)
-  const [color, setColor] = useState(initial?.color ?? '#64748b')
-  const [completedThisWeek, setCompletedThisWeek] = useState(initial?.completedThisWeek ?? 0)
+  const [color, setColor] = useState<string>(initial?.color ?? '#64748b')
+  const [completedThisWeek, setCompletedThisWeek] = useState(0)
 
   function submit() {
     onSubmit({
       name: name.trim(),
       weeklyGoalMinutes: Math.max(0, Number(weeklyGoalMinutes) || 0),
       color,
-      // Für Mock erlauben wir das Setzen (praktisch zum Testen der Balken)
       completedThisWeek: Math.max(0, Number(completedThisWeek) || 0),
-    } as any)
+    })
   }
 
   return (
@@ -275,11 +300,13 @@ function SubjectModal({
           <Labeled label="Farbe">
             <input
               type="color"
-              value={color}
+              value={color ?? '#64748b'}
               onChange={(e) => setColor(e.target.value)}
               className="h-10 w-full rounded-xl border border-slate-200 bg-white p-1"
             />
           </Labeled>
+
+          {/* Nur UI-Preview – später durch Analytics ersetzen */}
           <Labeled label="Erledigt (diese Woche)">
             <input
               type="number"
@@ -292,11 +319,19 @@ function SubjectModal({
         </div>
 
         <div className="mt-4 flex items-center justify-end gap-2">
-          <button onClick={onClose} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm hover:bg-slate-50">
+          <button
+            onClick={onClose}
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm hover:bg-slate-50"
+            disabled={saving}
+          >
             Abbrechen
           </button>
-          <button onClick={submit} className="rounded-xl bg-slate-900 px-3 py-2 text-sm text-white">
-            Speichern
+          <button
+            onClick={submit}
+            className="rounded-xl bg-slate-900 px-3 py-2 text-sm text-white disabled:opacity-60"
+            disabled={saving}
+          >
+            {saving ? 'Speichern…' : 'Speichern'}
           </button>
         </div>
       </div>
@@ -313,14 +348,8 @@ function Labeled({ label, children, className = '' }: { label: string; children:
   )
 }
 
-/* ============================ Helpers ============================ */
-
-function progress(s: Subject) {
+function progress(s: SubjectUI & { completedThisWeek?: number }) {
+  const done = s.completedThisWeek ?? 0
   if (s.weeklyGoalMinutes <= 0) return 0
-  return (s.completedThisWeek / s.weeklyGoalMinutes) * 100
-}
-
-function rid() {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return (crypto as any).randomUUID()
-  return Math.random().toString(36).slice(2, 10)
+  return (done / s.weeklyGoalMinutes) * 100
 }

@@ -171,3 +171,46 @@ export const studySessionsApi = {
       `/study-sessions/week-stats?${new URLSearchParams({ weekStart })}`
     ),
 }
+
+/* --------------------------- Subjects --------------------------- */
+export interface Subject {
+  id: string
+  name: string
+  color?: string | null
+  weeklyGoalMinutes?: number | null
+  createdAt?: string
+  updatedAt?: string
+  _count?: { tasks: number }
+  userId?: string
+}
+
+export interface CreateSubjectDto {
+  name: string
+  color?: string
+  weeklyGoalMinutes?: number
+}
+
+export type UpdateSubjectDto = Partial<CreateSubjectDto>
+
+export const subjectsApi = {
+  getAll: () => apiRequest<Subject[]>('/subjects'),
+  getOne: (id: string) => apiRequest<Subject>(`/subjects/${id}`),
+
+  create: (data: CreateSubjectDto) =>
+    apiRequest<Subject>('/subjects', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  update: (id: string, data: UpdateSubjectDto) =>
+    apiRequest<Subject>(`/subjects/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+
+  remove: (id: string) =>
+    apiRequest<void>(`/subjects/${id}`, { method: 'DELETE' }),
+
+  search: (q: string) =>
+    apiRequest<Subject[]>(`/subjects/search?q=${encodeURIComponent(q)}`),
+}

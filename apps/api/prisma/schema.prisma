@@ -30,7 +30,7 @@ model Subject {
   id                 String   @id @default(uuid())
   name               String
   color              String?
-  weeklyGoalMinutes  Int      @default(120)
+  weeklyGoalMinutes  Int     @default(120)
   userId             String
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
