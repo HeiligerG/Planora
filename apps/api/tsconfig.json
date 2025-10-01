@@ -6,7 +6,8 @@
     "outDir": "./dist",
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
-    "moduleResolution": "node"
+    "moduleResolution": "node",
+    "types": ["vitest/globals", "node"]
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]

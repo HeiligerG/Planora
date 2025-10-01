@@ -1,4 +1,6 @@
 import { Link } from '@tanstack/react-router'
+import { useAuthStore } from '../../stores/authStore'
+import { useNavigate } from '@tanstack/react-router'
 
 
 interface TopBarProps {
@@ -6,6 +8,15 @@ interface TopBarProps {
 }
 
 export function TopBar({ onOpenCmd }: TopBarProps) {
+  const logout = useAuthStore((state) => state.logout)
+  const user = useAuthStore((state) => state.user)
+  const navigate = useNavigate()
+
+  const handleLogout = () => {
+    logout()
+    navigate({ to: '/login' })
+  }
+
   return (
     <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/90 backdrop-blur">
       <div className="mx-auto flex max-w-[1400px] items-center gap-3 px-4 py-3">
@@ -41,7 +52,16 @@ export function TopBar({ onOpenCmd }: TopBarProps) {
           </button>
 
           {/* User Avatar Placeholder */}
+          </div>
+          <div className="ml-auto flex items-center gap-2">
+          <span className="text-sm text-slate-600">{user?.name}</span>
           <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-slate-300 to-slate-100" />
+          <button
+            onClick={handleLogout}
+            className="rounded-xl border border-slate-200 bg-white px-3 py-1 text-sm hover:bg-slate-50"
+          >
+            Logout
+          </button>
         </div>
       </div>
     </header>
