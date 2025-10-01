@@ -27,18 +27,20 @@ model User {
 }
 
 model Subject {
-  id        String   @id @default(uuid())
-  name      String
-  color     String?
-  userId    String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                 String   @id @default(uuid())
+  name               String
+  color              String?
+  weeklyGoalMinutes  Int      @default(120)
+  userId             String
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
-  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tasks Task[]
-  exams Exam[]
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tasks   Task[]
+  exams   Exam[]
 
-  @@unique([userId, name])
+  @@unique([userId, name], name: "userId_name")
+  @@index([userId])
   @@map("subjects")
 }
 
