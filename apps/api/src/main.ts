@@ -10,9 +10,8 @@ async function bootstrap() {
     transform: true,
   }));
   
-  // CORS aktivieren (WICHTIG!)
   app.enableCors({
-    origin: 'http://localhost:3000', // Frontend URL
+    origin: 'http://localhost:3000',
     credentials: true,
   })
   await app.listen(4000)
