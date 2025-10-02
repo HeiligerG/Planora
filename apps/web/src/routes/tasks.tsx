@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
+import SubjectSelect from '../components/ui/SubjectSelect'
 import {
   useTasks,
   useCreateTask,
@@ -289,8 +290,7 @@ function TaskModal({
   loading?: boolean
 }) {
   const [title, setTitle] = useState(initial?.title ?? '')
-  const [subject /* Anzeige */, setSubject] = useState(initial?.subject ?? '')
-  const [subjectId /* späteres Select */, _setSubjectId] = useState<string | null>(initial?.subjectId ?? null)
+  const [subjectId, setSubjectId] = useState<string | null>(initial?.subjectId ?? null)
   const [effortMinutes, setEffortMinutes] = useState(initial?.effortMinutes ?? 60)
   const [due, setDue] = useState(toInputDate(initial?.due ?? addDaysISO(2)))
   const [priority, setPriority] = useState<PriorityUI>(initial?.priority ?? 'medium')
@@ -307,7 +307,7 @@ function TaskModal({
       priority,
       tags: splitTags(tags),
       status,
-      subjectId,
+      subjectId: subjectId,
     })
   }
 
@@ -324,8 +324,13 @@ function TaskModal({
             <input value={title} onChange={(e) => setTitle(e.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none" />
           </Labeled>
           <Labeled label="Fach (Anzeige)">
-            <input value={subject} onChange={(e) => setSubject(e.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none" />
-          </Labeled>
+            <SubjectSelect
+              value={subjectId}
+              onChange={(id) => setSubjectId(id)}
+              allowNone
+              noneLabel="— Ohne Fach —"
+              className="w-full"
+            />          </Labeled>
           <Labeled label="Aufwand (min)">
             <input type="number" min={0} value={effortMinutes} onChange={(e) => setEffortMinutes(Number(e.target.value))} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none" />
           </Labeled>
