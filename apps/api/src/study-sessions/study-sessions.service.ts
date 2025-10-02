@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common'
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
-import { CreateStudySessionDto, UpdateStudySessionDto, CreateSubtaskDto, UpdateSubtaskDto } from './dto'
+import { CreateStudySessionDto, UpdateStudySessionDto, CreateSubtaskDto, UpdateSubtaskDto, BulkCreateStudySessionsDto, BulkStudySessionItemDto } from './dto'
 
 @Injectable()
 export class StudySessionsService {
@@ -15,6 +15,41 @@ export class StudySessionsService {
       include: {
         subtasks: true,
       },
+    })
+  }
+
+  async bulkCreate(userId: string, dto: BulkCreateStudySessionsDto) {
+    const items = dto.sessions ?? []
+    if (items.length === 0) return []
+
+    // simple Validierung
+    for (const s of items) {
+      const start = new Date(s.scheduledStart)
+      const end = new Date(s.scheduledEnd)
+      if (!(start instanceof Date) || isNaN(start.getTime()) || !(end instanceof Date) || isNaN(end.getTime())) {
+        throw new BadRequestException('Invalid date in sessions payload')
+      }
+      if (end <= start) {
+        throw new BadRequestException('scheduledEnd must be after scheduledStart')
+      }
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const created = []
+      for (const s of items) {
+        const row = await tx.studySession.create({
+          data: {
+            userId,
+            title: s.title,
+            scheduledStart: new Date(s.scheduledStart),
+            scheduledEnd: new Date(s.scheduledEnd),
+            notes: s.notes ?? null,
+          },
+          include: { subtasks: true },
+        })
+        created.push(row)
+      }
+      return created
     })
   }
 

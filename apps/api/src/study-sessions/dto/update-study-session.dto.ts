@@ -1,14 +1,17 @@
-import { IsDateString, IsInt, IsOptional, IsString, IsArray, IsBoolean, Min } from 'class-validator'
+import { IsString, IsOptional, IsDateString, IsArray } from 'class-validator'
 
-export class CreateStudySessionDto {
+export class UpdateStudySessionDto {
+  @IsOptional()
   @IsString()
-  title!: string
+  title?: string
 
+  @IsOptional()
   @IsDateString()
-  scheduledStart!: string
+  scheduledStart?: string
 
+  @IsOptional()
   @IsDateString()
-  scheduledEnd!: string
+  scheduledEnd?: string
 
   @IsOptional()
   @IsDateString()

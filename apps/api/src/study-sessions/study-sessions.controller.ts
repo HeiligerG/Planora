@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request, Query } from '@nestjs/common'
 import { StudySessionsService } from './study-sessions.service'
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
-import { CreateStudySessionDto, UpdateStudySessionDto, CreateSubtaskDto, UpdateSubtaskDto } from './dto'
+import { CreateStudySessionDto, UpdateStudySessionDto, CreateSubtaskDto, UpdateSubtaskDto, BulkCreateStudySessionsDto } from './dto'
 
 @Controller('study-sessions')
 @UseGuards(JwtAuthGuard)
@@ -11,6 +11,11 @@ export class StudySessionsController {
   @Post()
   create(@Request() req: any, @Body() dto: CreateStudySessionDto) {
     return this.studySessionsService.create(req.user.userId, dto)
+  }
+
+  @Post('bulk')
+  bulkCreate(@Request() req: any, @Body() dto: BulkCreateStudySessionsDto) {
+    return this.studySessionsService.bulkCreate(req.user.userId, dto)
   }
 
   @Get()

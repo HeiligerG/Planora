@@ -1,1 +1,5 @@
 export * from './create-study-session.dto'
+export * from './update-study-session.dto'
+export * from './create-subtask.dto'
+export * from './update-subtask.dto'
+export * from './bulk-create-study-session.dto'

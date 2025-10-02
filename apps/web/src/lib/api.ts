@@ -107,6 +107,14 @@ export const tasksApi = {
 
 /* --------------------------- Study Sessions --------------------------- */
 
+/** Status der Lerneinheit – hält Client & Server sauber konsistent */
+export enum StudySessionStatus {
+  SCHEDULED = 'SCHEDULED',
+  IN_PROGRESS = 'IN_PROGRESS',
+  DONE = 'DONE',
+}
+
+/** Subtask einer Lerneinheit */
 export interface Subtask {
   id: string
   sessionId: string
@@ -117,28 +125,48 @@ export interface Subtask {
   order: number
 }
 
+/** Serverseitiges Modell einer Study Session */
 export interface StudySession {
   id: string
   title: string
-  scheduledStart: string
-  scheduledEnd: string
-  actualStart?: string
-  actualEnd?: string
+  scheduledStart: string // ISO
+  scheduledEnd: string   // ISO
+  actualStart?: string   // ISO
+  actualEnd?: string     // ISO
   notes?: string
-  status: string
+  status: StudySessionStatus | string
   userId: string
   createdAt: string
   updatedAt: string
   subtasks: Subtask[]
 }
 
+/** DTO zum Erstellen einer Study Session */
 export interface CreateStudySessionDto {
   title: string
-  scheduledStart: string
-  scheduledEnd: string
+  scheduledStart: string // ISO
+  scheduledEnd: string   // ISO
   notes?: string
   tags?: string[]
 }
+
+/** DTO zum Bulk-Erstellen mehrerer Sessions */
+export interface BulkCreateStudySessionsDto {
+  sessions: CreateStudySessionDto[]
+}
+
+/** DTO zum Patchen/Teil-Updaten einer Session */
+export type StudySessionUpdate = Partial<{
+  title: string
+  scheduledStart: string // ISO
+  scheduledEnd: string   // ISO
+  notes: string
+  actualStart: string | null // Starten / zurücksetzen
+  actualEnd: string | null   // Abschließen / zurücksetzen
+  status: StudySessionStatus
+}>
+
+/* --------------------- Session-Subtasks API --------------------- */
 
 export interface CreateSessionSubtaskDto {
   sessionId: string
@@ -155,15 +183,10 @@ export const sessionSubtasksApi = {
     }),
 }
 
-/* ---- StudySessions: kleine Quality-of-life Helfer ---- */
-export interface CreateStudySessionDto {
-  title: string
-  scheduledStart: string // ISO
-  scheduledEnd: string   // ISO
-  notes?: string
-}
+/* ------------------------- StudySessions API ------------------------- */
 
 export const studySessionsApi = {
+  /** Liste nach Zeitraum filtern (optional) */
   getAll: (params?: { startDate?: string; endDate?: string }) => {
     const query = new URLSearchParams()
     if (params?.startDate) query.append('startDate', params.startDate)
@@ -180,7 +203,14 @@ export const studySessionsApi = {
       body: JSON.stringify(data),
     }),
 
-  update: (id: string, data: Partial<CreateStudySessionDto>) =>
+  bulkCreate: (payload: BulkCreateStudySessionsDto) =>
+    apiRequest<StudySession[]>('/study-sessions/bulk', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  /** Teil-Update / Patch (z. B. Start/Ende setzen) */
+  update: (id: string, data: StudySessionUpdate) =>
     apiRequest<StudySession>(`/study-sessions/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(data),
@@ -189,15 +219,21 @@ export const studySessionsApi = {
   delete: (id: string) =>
     apiRequest<void>(`/study-sessions/${id}`, { method: 'DELETE' }),
 
+  /** kleine Wochen-Stats (optional) */
   getWeekStats: (weekStart: string) =>
     apiRequest<Array<{ planned: number; actual: number; sessions: number }>>(
-      `/study-sessions/week-stats?${new URLSearchParams({ weekStart })}`
+      `/study-sessions/week-stats?${new URLSearchParams({ weekStart })}`,
     ),
-    
-  createFromTask: async (task: { id: string; title: string; estimatedMinutes?: number }, whenISO: string) => {
+
+  /** Schnell: Session aus Task erzeugen + Subtask verknüpfen */
+  createFromTask: async (
+    task: { id: string; title: string; estimatedMinutes?: number },
+    whenISO: string,
+  ) => {
     const minutes = Math.max(15, task.estimatedMinutes ?? 45)
     const start = new Date(whenISO)
     const end = new Date(start.getTime() + minutes * 60000)
+
     const session = await apiRequest<StudySession>('/study-sessions', {
       method: 'POST',
       body: JSON.stringify({
@@ -206,12 +242,14 @@ export const studySessionsApi = {
         scheduledEnd: end.toISOString(),
       } satisfies CreateStudySessionDto),
     })
+
     await sessionSubtasksApi.create({
       sessionId: session.id,
       description: task.title,
       estimatedMinutes: minutes,
       taskId: task.id,
     })
+
     return session
   },
 }
