@@ -14,8 +14,8 @@ const NAV_ITEMS = [
   { to: '/calendar', label: 'Kalender', icon: CalendarIcon },
   { to: '/tasks', label: 'Aufgaben', icon: TasksIcon },
   { to: '/exams', label: 'Prüfungen', icon: ExamsIcon },
-  { to: '/analytics', label: 'Analyse', icon: AnalyticsIcon },
   { to: '/subjects', label: 'Fächer', icon: SubjectsIcon },
+  { to: '/analytics', label: 'Analyse', icon: AnalyticsIcon },
   { to: '/settings', label: 'Einstellungen', icon: SettingsIcon },
 ]
 

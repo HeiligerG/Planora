@@ -140,6 +140,29 @@ export interface CreateStudySessionDto {
   tags?: string[]
 }
 
+export interface CreateSessionSubtaskDto {
+  sessionId: string
+  description: string
+  estimatedMinutes: number
+  taskId?: string
+}
+
+export const sessionSubtasksApi = {
+  create: (data: CreateSessionSubtaskDto) =>
+    apiRequest(`/session-subtasks`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+}
+
+/* ---- StudySessions: kleine Quality-of-life Helfer ---- */
+export interface CreateStudySessionDto {
+  title: string
+  scheduledStart: string // ISO
+  scheduledEnd: string   // ISO
+  notes?: string
+}
+
 export const studySessionsApi = {
   getAll: (params?: { startDate?: string; endDate?: string }) => {
     const query = new URLSearchParams()
@@ -170,6 +193,27 @@ export const studySessionsApi = {
     apiRequest<Array<{ planned: number; actual: number; sessions: number }>>(
       `/study-sessions/week-stats?${new URLSearchParams({ weekStart })}`
     ),
+    
+  createFromTask: async (task: { id: string; title: string; estimatedMinutes?: number }, whenISO: string) => {
+    const minutes = Math.max(15, task.estimatedMinutes ?? 45)
+    const start = new Date(whenISO)
+    const end = new Date(start.getTime() + minutes * 60000)
+    const session = await apiRequest<StudySession>('/study-sessions', {
+      method: 'POST',
+      body: JSON.stringify({
+        title: task.title,
+        scheduledStart: start.toISOString(),
+        scheduledEnd: end.toISOString(),
+      } satisfies CreateStudySessionDto),
+    })
+    await sessionSubtasksApi.create({
+      sessionId: session.id,
+      description: task.title,
+      estimatedMinutes: minutes,
+      taskId: task.id,
+    })
+    return session
+  },
 }
 
 /* --------------------------- Subjects --------------------------- */
@@ -213,4 +257,48 @@ export const subjectsApi = {
 
   search: (q: string) =>
     apiRequest<Subject[]>(`/subjects/search?q=${encodeURIComponent(q)}`),
+}
+
+/* --------------------------- Exams --------------------------- */
+export interface Exam {
+  id: string
+  title: string
+  date: string
+  duration?: number | null
+  location?: string | null
+  description?: string | null
+  subject: { id: string; name: string }
+  subjectId?: string
+  prepTimeNeeded?: number | null
+  risk: number
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface CreateExamDto {
+  title: string
+  date: string
+  subjectId: string
+  duration?: number
+  location?: string
+  description?: string
+  prepTimeNeeded?: number
+  risk?: number
+}
+export type UpdateExamDto = Partial<CreateExamDto>
+
+export const examsApi = {
+  getAll: (params?: { from?: string; to?: string }) => {
+    const q = new URLSearchParams()
+    if (params?.from) q.append('from', params.from)
+    if (params?.to) q.append('to', params.to)
+    const qs = q.toString()
+    return apiRequest<Exam[]>(`/exams${qs ? `?${qs}` : ''}`)
+  },
+  getOne: (id: string) => apiRequest<Exam>(`/exams/${id}`),
+  create: (data: CreateExamDto) =>
+    apiRequest<Exam>('/exams', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: UpdateExamDto) =>
+    apiRequest<Exam>(`/exams/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  remove: (id: string) => apiRequest<void>(`/exams/${id}`, { method: 'DELETE' }),
 }
